@@ -1,3 +1,10 @@
+"""
+Веб-приложение турниров: Flask, Peewee, MySQL.
+
+Содержит маршруты (главная, турнир, кабинет, пик/бан CS2, отчёты), генерацию сеток
+single elimination / round robin и вспомогательную логику статусов матчей CS2.
+"""
+
 import os
 import bcrypt
 
@@ -31,15 +38,18 @@ application.secret_key = os.getenv("SECRET_KEY", "super-secret-key")
 login_manager = LoginManager(application)
 login_manager.login_view = "login_page"
 
+# Карты для процедуры пик/бан (имена должны совпадать с тем, что пишется в БД)
 CS2_MAP_POOL = ["Mirage", "Inferno", "Dust 2", "Nuke", "Ancient", "Overpass", "Anubis"]
 
 
 @login_manager.user_loader
 def user_loader(user_id):
+    """Подгружает пользователя по id из cookie-сессии (интерфейс Flask-Login)."""
     return UsersController.show(int(user_id))
 
 
 def init_db():
+    """Создаёт таблицы, базовые роли и тестового admin1 при отсутствии."""
     db = connect()
     db.connect(reuse_if_open=True)
 
@@ -85,6 +95,7 @@ def init_db():
 
 
 def is_cs2_name(game):
+    """True, если строка game распознаётся как Counter-Strike 2 (разные написания)."""
     if game is None or not str(game).strip():
         return False
     g = str(game).strip().lower()
@@ -95,10 +106,12 @@ def is_cs2_name(game):
 
 
 def is_cs2_tournament(tournament):
+    """True, если турнир помечен игрой CS2."""
     return tournament is not None and is_cs2_name(tournament.game)
 
 
 def is_cs2_match(match):
+    """True, если матч относится к турниру CS2 (по связанному tournament)."""
     try:
         t = match.tournament_id
         if isinstance(t, int):
@@ -128,15 +141,18 @@ def pickban_series_done(complete, order_maps):
 
 
 def match_initial_status(tournament_id):
+    """Стартовый статус нового матча: veto для CS2 (пик/бан), иначе pending."""
     t = Tournaments.get_or_none(Tournaments.id == tournament_id)
     return "veto" if is_cs2_tournament(t) else "pending"
 
 
 def captain_team():
+    """Команда, где текущий пользователь — капитан, или None."""
     return Teams.get_or_none(Teams.captain_id == current_user.id)
 
 
 def generate_single_elimination(tournament_id, team_ids):
+    """Строит олимпийскую сетку на вылет; пустые слоты — без команд, статус pending."""
     Matches.delete().where(Matches.tournament_id == tournament_id).execute()
     n = len(team_ids)
     if n < 2:
@@ -172,6 +188,7 @@ def generate_single_elimination(tournament_id, team_ids):
 
 
 def generate_round_robin(tournament_id, team_ids):
+    """Круговой турнир (circle method); нечётное число команд — фиктивный bye (None)."""
     Matches.delete().where(Matches.tournament_id == tournament_id).execute()
     teams = list(team_ids)
     if len(teams) < 2:
@@ -197,6 +214,7 @@ def generate_round_robin(tournament_id, team_ids):
 
 
 def captain_open_matches(team):
+    """Матчи команды в статусе pending, турнир идёт, обе команды назначены (отчёт без CS2-карт)."""
     if not team:
         return []
     q = (
@@ -215,6 +233,7 @@ def captain_open_matches(team):
 
 
 def captain_veto_matches(team):
+    """Матчи команды в фазе пик/бана CS2 (status veto)."""
     if not team:
         return []
     q = (
@@ -233,6 +252,7 @@ def captain_veto_matches(team):
 
 
 def step_action(step):
+    """Тип хода по номеру шага (1–6 ban/pick, 7 decider)."""
     if step in (1, 2, 5, 6):
         return "ban"
     if step in (3, 4):
@@ -243,6 +263,7 @@ def step_action(step):
 
 
 def acting_team_for_step(match, step):
+    """Какая команда ходит на шаге step (нечётные шаги — team1, чётные — team2)."""
     if step in (1, 3, 5):
         return match.team1_id
     if step in (2, 4, 6):
@@ -251,6 +272,7 @@ def acting_team_for_step(match, step):
 
 
 def compute_pickban_state(match):
+    """Снимок пик/бана: остаток пула, порядок карт серии, следующий шаг, завершённость, история."""
     rows = list(
         Cs2_pickban.select()
         .where(Cs2_pickban.match_id == match.id)
@@ -272,6 +294,7 @@ def compute_pickban_state(match):
 
 
 def finalize_decider_if_needed(match):
+    """После 6-го хода автоматически добавляет 7-й шаг (decider) и переводит матч в pending."""
     pool, _, next_step, complete, _ = compute_pickban_state(match)
     if complete:
         return
@@ -313,19 +336,16 @@ def reconcile_cs2_match_status(match):
             Matches.update(status="veto").where(Matches.id == match.id).execute()
 
 
-def _reload_match(match):
-    """Перечитать матч из БД после reconcile (совместимо со старым Peewee)."""
-    return Matches.get(Matches.id == match.id)
-
-
 @application.route("/", methods=["GET"])
 def home():
+    """Главная: список турниров."""
     tournaments = Tournaments.select().order_by(Tournaments.id.desc())
     return render_template("index.html", tournaments=tournaments)
 
 
 @application.route("/tournament/<int:tournament_id>", methods=["GET"])
 def tournament_detail(tournament_id):
+    """Карточка турнира: команды, матчи, счёт, пик/бан CS2, авто-завершение турнира при чемпионе."""
     tournament = Tournaments.get_or_none(Tournaments.id == tournament_id)
     if not tournament:
         flash("Турнир не найден", "error")
@@ -418,13 +438,14 @@ def tournament_detail(tournament_id):
 @application.route("/match/<int:match_id>/pickban", methods=["GET", "POST"])
 @login_required
 def match_pickban(match_id):
+    """Страница пик/бана CS2; POST — ход капитана (шаги 1–6), decider создаётся автоматически."""
     match = Matches.get_or_none(Matches.id == match_id)
     if not match or not is_cs2_match(match):
         flash("Матч не найден или не CS2", "error")
         return redirect("/")
 
     reconcile_cs2_match_status(match)
-    match = _reload_match(match)
+    match = Matches.get_by_id(match.id)
 
     t1 = match.team1_id
     t2 = match.team2_id
@@ -511,13 +532,14 @@ def match_pickban(match_id):
 @application.route("/match/<int:match_id>/report_cs2", methods=["GET", "POST"])
 @login_required
 def match_report_cs2(match_id):
+    """Отчёт капитана по BO3: раунды на каждой карте, создание Match_results и map_scores."""
     match = Matches.get_or_none(Matches.id == match_id)
     if not match or not is_cs2_match(match):
         flash("Матч не найден или не CS2", "error")
         return redirect("/")
 
     reconcile_cs2_match_status(match)
-    match = _reload_match(match)
+    match = Matches.get_by_id(match.id)
 
     if match.status != "pending":
         flash("Матч недоступен для отчёта", "error")
@@ -608,6 +630,7 @@ def match_report_cs2(match_id):
 
 @application.route("/login", methods=["GET", "POST"])
 def login_page():
+    """Форма входа (email или username + пароль)."""
     message = ""
     if request.method == "POST":
         login = request.form.get("login", "").strip()
@@ -625,6 +648,7 @@ def login_page():
 
 @application.route("/register", methods=["GET", "POST"])
 def register_page():
+    """Регистрация с выбором роли (капитан / игрок / зритель)."""
     message = ""
     if request.method == "POST":
         username = request.form.get("username", "").strip()
@@ -669,6 +693,7 @@ def register_page():
 @application.route("/admin", methods=["GET"])
 @login_required
 def admin_panel():
+    """Сводка для админа: пользователи, неподтверждённые результаты, турниры."""
     if current_user.role_id.id != 1:
         return redirect("/dashboard")
     users = list(Users.select().order_by(Users.id))
@@ -689,6 +714,7 @@ def admin_panel():
 @application.route("/dashboard", methods=["GET"])
 @login_required
 def dashboard():
+    """Личный кабинет в зависимости от роли: админ, капитан, игрок, зритель."""
     tournaments = Tournaments.select().order_by(Tournaments.id.desc())
     unconfirmed = list(
         Match_results.select()
@@ -764,6 +790,7 @@ def dashboard():
 @application.route("/captain/match/report", methods=["POST"])
 @login_required
 def captain_report_match():
+    """Отправка счёта по матчу не-CS2 (один счёт за матч); для CS2 редирект на отчёт по картам."""
     if current_user.role_id.id != 2:
         return redirect("/logout")
 
@@ -826,6 +853,7 @@ def captain_report_match():
 @application.route("/admin/tournament/start", methods=["POST"])
 @login_required
 def admin_start_tournament():
+    """Админ запускает турнир из registration: генерирует матчи и ставит статус in_progress."""
     if current_user.role_id.id != 1:
         return redirect("/logout")
 
@@ -871,6 +899,7 @@ def admin_start_tournament():
 @application.route("/captain/team/create", methods=["POST"])
 @login_required
 def captain_create_team():
+    """Капитан создаёт команду и сам попадает в состав."""
     if current_user.role_id.id != 2:
         return redirect("/logout")
 
@@ -892,6 +921,7 @@ def captain_create_team():
 @application.route("/captain/team/remove_player", methods=["POST"])
 @login_required
 def captain_remove_player():
+    """Капитан исключает игрока из своей команды (не себя)."""
     if current_user.role_id.id != 2:
         return redirect("/logout")
 
@@ -916,6 +946,7 @@ def captain_remove_player():
 @application.route("/captain/join_request/approve", methods=["POST"])
 @login_required
 def captain_approve_join():
+    """Капитан одобряет заявку игрока в команду."""
     if current_user.role_id.id != 2 or Team_join_requests is None:
         return redirect("/logout")
 
@@ -948,6 +979,7 @@ def captain_approve_join():
 @application.route("/captain/join_request/reject", methods=["POST"])
 @login_required
 def captain_reject_join():
+    """Капитан отклоняет заявку игрока."""
     if current_user.role_id.id != 2 or Team_join_requests is None:
         return redirect("/logout")
 
@@ -973,6 +1005,7 @@ def captain_reject_join():
 @application.route("/captain/tournament/register", methods=["POST"])
 @login_required
 def captain_register_tournament():
+    """Регистрирует команду капитана на турнир (пока открыта регистрация и есть слоты)."""
     if current_user.role_id.id != 2:
         return redirect("/logout")
 
@@ -1019,6 +1052,7 @@ def captain_register_tournament():
 @application.route("/player/teams", methods=["GET"])
 @login_required
 def player_teams():
+    """Игрок: список команд для подачи заявки на вступление."""
     if current_user.role_id.id != 3:
         return redirect("/logout")
 
@@ -1044,6 +1078,7 @@ def player_teams():
 @application.route("/player/team/request", methods=["POST"])
 @login_required
 def player_team_request():
+    """Игрок отправляет заявку в выбранную команду."""
     if current_user.role_id.id != 3 or Team_join_requests is None:
         return redirect("/logout")
 
@@ -1077,6 +1112,7 @@ def player_team_request():
 @application.route("/create_tournament", methods=["POST"])
 @login_required
 def create_tournament():
+    """Админ создаёт турнир со статусом registration."""
     if current_user.role_id.id != 1:
         return redirect("/logout")
 
@@ -1114,6 +1150,7 @@ def create_tournament():
 @application.route("/finish_tournament", methods=["POST"])
 @login_required
 def finish_tournament():
+    """Админ принудительно переводит турнир в статус finished."""
     if current_user.role_id.id != 1:
         return redirect("/logout")
 
@@ -1130,6 +1167,7 @@ def finish_tournament():
 @application.route("/confirm_match_result", methods=["POST"])
 @login_required
 def confirm_match_result():
+    """Админ подтверждает отправленный капитаном результат; матч становится confirmed."""
     if current_user.role_id.id != 1:
         return redirect("/logout")
 
@@ -1158,11 +1196,12 @@ def confirm_match_result():
 @application.route("/logout", methods=["GET"])
 @login_required
 def logout():
+    """Выход из аккаунта (очистка сессии Flask-Login)."""
     logout_user()
     return redirect("/")
 
 
-# Совместимость с `flask --app app run` и WSGI-серверами
+
 app = application
 
 if __name__ == "__main__":

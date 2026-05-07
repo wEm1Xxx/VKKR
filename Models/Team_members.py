@@ -1,9 +1,13 @@
+"""Связь пользователь ↔ команда (состав)."""
+
 from Models.Base import *
 from Models.Teams import Teams
 from Models.Users import Users
 
 
 class Team_members(Base):
+    """Таблица team_members: кто из users входит в какую team (уникальная пара team+user)."""
+
     id = PrimaryKeyField()
     team_id = ForeignKeyField(
         Teams,

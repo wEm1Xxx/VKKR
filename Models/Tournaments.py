@@ -1,8 +1,12 @@
+"""Модель турнира: игра, формат, статус, лимит команд."""
+
 from Models.Base import *
 from Models.Users import Users
 
 
 class Tournaments(Base):
+    """Таблица tournaments: метаданные турнира и автор (created_by)."""
+
     id = PrimaryKeyField()
     title = CharField(max_length=255)
     game = CharField(max_length=255)

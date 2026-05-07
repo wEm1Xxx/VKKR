@@ -1,8 +1,12 @@
+"""Модель команды и её капитана."""
+
 from Models.Base import *
 from Models.Users import Users
 
 
 class Teams(Base):
+    """Таблица teams: название и ссылка на пользователя-капитана."""
+
     id = PrimaryKeyField()
     name = CharField(unique=True, max_length=120)
     captain_id = ForeignKeyField(

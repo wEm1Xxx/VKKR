@@ -1,9 +1,13 @@
+"""Один шаг пик/бана карт CS2 для матча."""
+
 from Models.Base import *
 from Models.Matches import Matches
 from Models.Teams import Teams
 
 
 class Cs2_pickban(Base):
+    """Таблица cs2_pickban: шаг (1–7), действие ban/pick/decider, карта, чья команда ходила."""
+
     id = PrimaryKeyField()
     match_id = ForeignKeyField(Matches, backref="cs2_pickbans", on_delete="CASCADE")
     step = IntegerField()

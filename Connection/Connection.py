@@ -1,3 +1,9 @@
+"""
+Подключение к MySQL через Peewee.
+
+Параметры читаются из .env в корне проекта (см. .env.example).
+"""
+
 import os
 from pathlib import Path
 
@@ -9,6 +15,7 @@ load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 
 def connect():
+    """Создаёт объект MySQLDatabase с настройками из переменных окружения (или значения по умолчанию)."""
     return MySQLDatabase(
         os.getenv("MYSQL_DATABASE", "tournament"),
         user=os.getenv("MYSQL_USER", "root"),

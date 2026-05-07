@@ -1,7 +1,14 @@
+/**
+ * Клиентский JS для гипотетического SPA/API (JWT, сетка).
+ * Текущее Flask-приложение в основном рендерит формы на сервере — этот файл может не подключаться.
+ */
+
+/** Читает сохранённый JWT из localStorage. */
 function getToken() {
   return localStorage.getItem("access_token");
 }
 
+/** fetch с заголовком Authorization Bearer, если токен есть. */
 async function authFetch(url, options = {}) {
   const token = getToken();
   const headers = options.headers || {};
@@ -12,6 +19,7 @@ async function authFetch(url, options = {}) {
   return fetch(url, { ...options, headers });
 }
 
+/** Логин через JSON API /auth/login и редирект на /dashboard (не используется серверными шаблонами login.html). */
 async function login(emailOrUsername, password) {
   const payload = emailOrUsername.includes("@")
     ? { email: emailOrUsername, password }
@@ -32,11 +40,13 @@ async function login(emailOrUsername, password) {
   window.location.href = "/dashboard";
 }
 
+/** Удаляет токен и уходит на главную. */
 function logout() {
   localStorage.removeItem("access_token");
   window.location.href = "/";
 }
 
+/** Рисует простую сетку матчей по раундам в #bracket. */
 function renderBracket(matches) {
   const container = document.getElementById("bracket");
   if (!container) return;
@@ -74,6 +84,7 @@ function renderBracket(matches) {
     });
 }
 
+/** Отправляет счёт матча на REST API. */
 async function reportMatch(matchId, score1, score2) {
   const res = await authFetch(`/matches/${matchId}/report`, {
     method: "POST",
@@ -82,6 +93,7 @@ async function reportMatch(matchId, score1, score2) {
   return res.json();
 }
 
+/** Подтверждение результата матча через API. */
 async function confirmMatch(matchId) {
   const res = await authFetch(`/matches/${matchId}/confirm`, {
     method: "POST",
@@ -89,6 +101,7 @@ async function confirmMatch(matchId) {
   return res.json();
 }
 
+/** Инициализация: опциональные форма логина, автозагрузка турниров и сетки с API. */
 document.addEventListener("DOMContentLoaded", async () => {
   const loginForm = document.getElementById("login-form");
   if (loginForm) {

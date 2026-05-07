@@ -1,19 +1,26 @@
+"""Турниры и каскадное удаление связанных регистраций и матчей."""
+
 from Models.Tournaments import Tournaments
 from Models.Tournament_registrations import Tournament_registrations
 from Models.Matches import Matches
 
 
 class TournamentsController:
+    """Операции над tournaments с учётом зависимостей."""
+
     @classmethod
     def get(cls):
+        """Все турниры."""
         return Tournaments.select()
 
     @classmethod
     def show(cls, id):
+        """Турнир по id или None."""
         return Tournaments.get_or_none(Tournaments.id == id)
 
     @classmethod
     def add(cls, title, game, format, max_teams, start_date, created_by, status="registration"):
+        """Создаёт турнир с указанным статусом (по умолчанию registration)."""
         return Tournaments.create(
             title=title,
             game=game,
@@ -26,11 +33,13 @@ class TournamentsController:
 
     @classmethod
     def update(cls, id, **filds):
+        """Обновляет поля турнира."""
         for key, value in filds.items():
             Tournaments.update({key: value}).where(Tournaments.id == id).execute()
 
     @classmethod
     def delete(cls, id):
+        """Удаляет регистрации и матчи турнира, затем сам турнир."""
         Tournament_registrations.delete().where(Tournament_registrations.tournament_id == id).execute()
         Matches.delete().where(Matches.tournament_id == id).execute()
         Tournaments.delete().where(Tournaments.id == id).execute()

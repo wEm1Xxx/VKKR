@@ -1,9 +1,13 @@
+"""Итоговый счёт матча и подтверждение админом."""
+
 from Models.Base import *
 from Models.Matches import Matches
 from Models.Users import Users
 
 
 class Match_results(Base):
+    """Таблица match_results: счёт серии, кто отправил, кто подтвердил (админ)."""
+
     id = PrimaryKeyField()
     match_id = ForeignKeyField(
         Matches,

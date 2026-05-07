@@ -1,9 +1,13 @@
+"""Заявка игрока на вступление в команду."""
+
 from Models.Base import *
 from Models.Teams import Teams
 from Models.Users import Users
 
 
 class Team_join_requests(Base):
+    """Таблица team_join_requests: pending / approved / rejected между player и team."""
+
     id = PrimaryKeyField()
     team_id = ForeignKeyField(
         Teams,

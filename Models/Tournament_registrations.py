@@ -1,9 +1,13 @@
+"""Регистрация команды на турнир."""
+
 from Models.Base import *
 from Models.Tournaments import Tournaments
 from Models.Teams import Teams
 
 
 class Tournament_registrations(Base):
+    """Таблица tournament_registrations: какая team участвует в каком tournament."""
+
     id = PrimaryKeyField()
     tournament_id = ForeignKeyField(
         Tournaments,

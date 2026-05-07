@@ -1,19 +1,26 @@
+"""CRUD и аутентификация пользователей (хеш пароля bcrypt)."""
+
 import bcrypt
 from Models.Users import Users
 from Models.Roles import Roles
 
 
 class UsersController:
+    """Операции над таблицей users: выборка, вход, регистрация, обновление."""
+
     @classmethod
     def get(cls):
+        """Возвращает запрос на всех пользователей."""
         return Users.select()
 
     @classmethod
     def show(cls, id):
+        """Находит пользователя по первичному ключу или None."""
         return Users.get_or_none(Users.id == id)
 
     @classmethod
     def show_login(cls, login):
+        """Ищет пользователя по email или username (для формы входа)."""
         user = Users.get_or_none(Users.email == login)
         if user is None:
             user = Users.get_or_none(Users.username == login)
@@ -21,6 +28,7 @@ class UsersController:
 
     @classmethod
     def add(cls, username, email, password, role_id=None, role_name="viewer"):
+        """Создаёт пользователя с хешем пароля; role_id или подбор по role_name."""
         if role_id is None:
             role = Roles.get_or_none(Roles.name == role_name)
             if role is None:
@@ -41,7 +49,7 @@ class UsersController:
 
     @classmethod
     def registration(cls, login, password, role_id=None):
-        # login может быть username или email
+        """Регистрация по одному полю login (email или username); возвращает успех bool."""
         is_email = "@" in login
         username = login if not is_email else login.split("@")[0]
         email = login if is_email else f"{login}@local.dev"
@@ -67,6 +75,7 @@ class UsersController:
 
     @classmethod
     def auth(cls, login, password):
+        """Проверяет пароль для login (email/username); True если верно."""
         user = cls.show_login(login)
         if user is None:
             return False
@@ -78,6 +87,7 @@ class UsersController:
 
     @classmethod
     def update(cls, id, **filds):
+        """Обновляет поля пользователя; ключ password превращается в password_hash."""
         if "password" in filds:
             raw_password = filds.pop("password")
             filds["password_hash"] = bcrypt.hashpw(
@@ -90,6 +100,7 @@ class UsersController:
 
     @classmethod
     def delete(cls, id):
+        """Удаляет пользователя по id."""
         Users.delete().where(Users.id == id).execute()
 
 

@@ -1,9 +1,13 @@
+"""Модель матча в сетке турнира."""
+
 from Models.Base import *
 from Models.Tournaments import Tournaments
 from Models.Teams import Teams
 
 
 class Matches(Base):
+    """Таблица matches: раунд, пары команд, победитель, статус (pending/veto/finished/confirmed)."""
+
     id = PrimaryKeyField()
     tournament_id = ForeignKeyField(
         Tournaments,

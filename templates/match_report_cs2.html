@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Отчёт CS2 — матч #{{ match.id }}{% endblock %}
+
+{% block content %}
+<h2>Отчёт по картам (CS2)</h2>
+<p>{{ team1.name }} vs {{ team2.name }}</p>
+<p class="small text-muted">Порядок: {{ order_maps | join(' → ') }}</p>
+
+<form method="POST">
+  {% for m in order_maps %}
+    {% set i = loop.index %}
+    <div class="card mb-3">
+      <div class="card-body">
+        <h5 class="card-title">{{ m }} (карта {{ i }})</h5>
+        <div class="row g-2">
+          <div class="col-md-4">
+            <label class="form-label small">{{ team1.name }} (раунды)</label>
+            <input class="form-control" type="number" name="r1_{{ i }}" min="0" required>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small">{{ team2.name }} (раунды)</label>
+            <input class="form-control" type="number" name="r2_{{ i }}" min="0" required>
+          </div>
+        </div>
+      </div>
+    </div>
+  {% endfor %}
+  <button class="btn btn-success" type="submit">Отправить серию администратору</button>
+  <a class="btn btn-link" href="/dashboard">Назад</a>
+</form>
+{% endblock %}

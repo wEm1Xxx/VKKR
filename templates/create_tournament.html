@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Создание турнира{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-7">
+    <div class="card">
+      <div class="card-body">
+        <h3>Создать турнир</h3>
+        <form method="POST" action="/create_tournament">
+          <div class="mb-2">
+            <label class="form-label">Название</label>
+            <input class="form-control" type="text" name="title" required>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Игра</label>
+            <input class="form-control" type="text" name="game" required>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Формат</label>
+            <select class="form-select" name="format">
+              <option value="single_elimination">single_elimination</option>
+              <option value="round_robin">round_robin</option>
+            </select>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Максимум команд</label>
+            <input class="form-control" type="number" name="max_teams" min="2" required>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Дата старта</label>
+            <input class="form-control" type="datetime-local" name="start_date" required>
+          </div>
+          <button class="btn btn-success" type="submit">Создать</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

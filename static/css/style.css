@@ -1,0 +1,36 @@
+body {
+  background-color: #f8f9fa;
+}
+
+.bracket-container {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  padding: 10px 0 20px;
+}
+
+.round {
+  min-width: 240px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.match-card {
+  background: #ffffff;
+  border: 1px solid #dee2e6;
+  border-radius: 10px;
+  padding: 10px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+@media (max-width: 768px) {
+  .bracket-container {
+    flex-direction: column;
+    overflow-x: hidden;
+  }
+
+  .round {
+    min-width: 100%;
+  }
+}

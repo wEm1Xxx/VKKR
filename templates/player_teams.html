@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Существующие команды{% endblock %}
+
+{% block content %}
+<h2>Существующие команды</h2>
+
+<ul class="list-group">
+  {% for t in teams %}
+    <li class="list-group-item d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <div>
+        <strong>#{{ t.id }} | {{ t.name }}</strong>
+        {% if my_team_id is not none and t.id == my_team_id %}
+          <span class="badge bg-success ms-2">Моя команда</span>
+        {% endif %}
+        <div class="text-muted small">Капитан ID: {{ t.captain_id.id }}</div>
+      </div>
+
+      <div>
+        {% if my_team_id is not none and t.id == my_team_id %}
+          <span class="text-success small fw-semibold">Вы в составе</span>
+        {% elif t.id in sent_team_ids %}
+          <button class="btn btn-secondary btn-sm" type="button" disabled>Запрос отправлен</button>
+        {% else %}
+          <form method="POST" action="/player/team/request" class="m-0">
+            <input type="hidden" name="team_id" value="{{ t.id }}">
+            <button type="submit" class="btn btn-primary btn-sm">Отправить запрос</button>
+          </form>
+        {% endif %}
+      </div>
+    </li>
+  {% else %}
+    <li class="list-group-item">Пока нет ни одной команды</li>
+  {% endfor %}
+</ul>
+{% endblock %}

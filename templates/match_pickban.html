@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Пик/бан CS2 — матч #{{ match.id }}{% endblock %}
+
+{% block content %}
+<h2>Пик / бан карт (CS2)</h2>
+<p class="text-muted">Матч #{{ match.id }} — {{ match.team1_id.name }} vs {{ match.team2_id.name }}</p>
+
+<ol class="mb-3">
+  <li>Капитан <strong>{{ match.team1_id.name }}</strong> — бан</li>
+  <li>Капитан <strong>{{ match.team2_id.name }}</strong> — бан</li>
+  <li>Капитан <strong>{{ match.team1_id.name }}</strong> — пик</li>
+  <li>Капитан <strong>{{ match.team2_id.name }}</strong> — пик</li>
+  <li>Капитан <strong>{{ match.team1_id.name }}</strong> — бан</li>
+  <li>Капитан <strong>{{ match.team2_id.name }}</strong> — бан</li>
+  <li>Оставшаяся карта — <strong>decider</strong> (автоматически)</li>
+</ol>
+
+<h5>История</h5>
+<ul class="list-group mb-3">
+  {% for h in history %}
+    <li class="list-group-item">
+      Шаг {{ h.step }} — {{ h.action }} — <strong>{{ h.map_name }}</strong>
+      {% if h.team_id %}({{ h.team_id.name }}){% else %}(авто){% endif %}
+    </li>
+  {% else %}
+    <li class="list-group-item">Пока пусто</li>
+  {% endfor %}
+</ul>
+
+{% if complete %}
+  <div class="alert alert-success">
+    Пик/бан завершён. Порядок карт: <strong>{{ order_maps | join(', ') }}</strong>
+    <div class="mt-2">
+      <a class="btn btn-primary" href="{{ url_for('tournament_detail', tournament_id=match.tournament_id.id) }}">К турниру</a>
+    </div>
+  </div>
+{% else %}
+  <div class="alert alert-info">
+    Сейчас шаг <strong>{{ next_step }}</strong>
+    {% if step_action %}— действие: <strong>{{ step_action }}</strong>{% endif %}
+    {% if acting_team %}— ход капитана <strong>{{ acting_team.name }}</strong>{% endif %}
+  </div>
+
+  {% if can_act %}
+    <form method="POST" class="row g-2">
+      <div class="col-md-6">
+        <select class="form-select" name="map_name" required>
+          <option value="">Выберите карту</option>
+          {% for m in pool %}
+            <option value="{{ m }}">{{ m }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3">
+        <button class="btn btn-primary w-100" type="submit">Подтвердить ход</button>
+      </div>
+    </form>
+  {% else %}
+    <p class="text-muted">Войдите капитаном нужной команды или дождитесь хода соперника.</p>
+  {% endif %}
+{% endif %}
+{% endblock %}

@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Список турниров{% endblock %}
+
+{% block content %}
+<h2 class="mb-3">Список турниров</h2>
+
+<div class="row">
+  {% for t in tournaments %}
+    <div class="col-md-4">
+      <div class="card mb-3">
+        <div class="card-body">
+          <h5 class="card-title">{{ t.title }}</h5>
+          <p class="card-text mb-1"><strong>Игра:</strong> {{ t.game }}</p>
+          <p class="card-text mb-1"><strong>Формат:</strong> {{ t.format }}</p>
+          <p class="card-text"><strong>Статус:</strong> {{ t.status }}</p>
+          <a class="btn btn-outline-primary btn-sm" href="/tournament/{{ t.id }}">Участники и матчи</a>
+        </div>
+      </div>
+    </div>
+  {% else %}
+    <p>Турниров пока нет.</p>
+  {% endfor %}
+</div>
+{% endblock %}

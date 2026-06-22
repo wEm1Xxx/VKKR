@@ -1,32 +1,43 @@
-{# Ввод раундов по каждой карте серии BO3 для отправки админу #}
 {% extends "base.html" %}
-{% block title %}Отчёт CS2 — матч #{{ match.id }}{% endblock %}
-
+{% block title %}Отчёт по матчу CS2{% endblock %}
 {% block content %}
-<h2>Отчёт по картам (CS2)</h2>
-<p>{{ team1.name }} vs {{ team2.name }}</p>
-<p class="small text-muted">Порядок: {{ order_maps | join(' → ') }}</p>
+<div class="container">
+  <h2>Отчёт по матчу CS2</h2>
+  <div class="card">
+    <div class="card-body">
+      <h5>{{ team1.name }} vs {{ team2.name }}</h5>
+      <p><strong>Карты в серии:</strong> {{ order_maps|join(', ') }}</p>
 
-<form method="POST">
-  {% for m in order_maps %}
-    {% set i = loop.index %}
-    <div class="card mb-3">
-      <div class="card-body">
-        <h5 class="card-title">{{ m }} (карта {{ i }})</h5>
-        <div class="row g-2">
-          <div class="col-md-4">
-            <label class="form-label small">{{ team1.name }} (раунды)</label>
-            <input class="form-control" type="number" name="r1_{{ i }}" min="0" required>
-          </div>
-          <div class="col-md-4">
-            <label class="form-label small">{{ team2.name }} (раунды)</label>
-            <input class="form-control" type="number" name="r2_{{ i }}" min="0" required>
+      <div class="alert alert-info">
+        <strong>Подсказка:</strong> Если одна команда выиграла первые две карты (счет 2:0),
+        третью карту можно оставить пустой.
+      </div>
+
+      <form method="POST">
+        {% for map_name in order_maps %}
+        <div class="row mb-3">
+          <div class="col-md-12">
+            <label class="form-label"><strong>Карта {{ loop.index }}: {{ map_name }}</strong></label>
+            <div class="row">
+              <div class="col-md-5">
+                <input class="form-control" type="number" name="r1_{{ loop.index }}" placeholder="Раунды {{ team1.name }}" min="0" {% if loop.index < 3 %}required{% endif %}>
+              </div>
+              <div class="col-md-2 text-center"><h4>:</h4></div>
+              <div class="col-md-5">
+                <input class="form-control" type="number" name="r2_{{ loop.index }}" placeholder="Раунды {{ team2.name }}" min="0" {% if loop.index < 3 %}required{% endif %}>
+              </div>
+            </div>
+            {% if loop.index == 3 %}
+            <small class="text-muted">* Обязательно только при счете 1:1 после двух карт</small>
+            {% endif %}
           </div>
         </div>
-      </div>
+        {% endfor %}
+
+        <button type="submit" class="btn btn-primary">Отправить результат</button>
+        <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">Отмена</a>
+      </form>
     </div>
-  {% endfor %}
-  <button class="btn btn-success" type="submit">Отправить серию администратору</button>
-  <a class="btn btn-link" href="/dashboard">Назад</a>
-</form>
+  </div>
+</div>
 {% endblock %}

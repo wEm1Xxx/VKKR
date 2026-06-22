@@ -1,63 +1,122 @@
-{# Пошаговый пик/бан карт CS2; форма только если ход текущего капитана #}
 {% extends "base.html" %}
-{% block title %}Пик/бан CS2 — матч #{{ match.id }}{% endblock %}
-
+{% block title %}Пик/бан CS2{% endblock %}
 {% block content %}
-<h2>Пик / бан карт (CS2)</h2>
-<p class="text-muted">Матч #{{ match.id }} — {{ match.team1_id.name }} vs {{ match.team2_id.name }}</p>
+<div class="container">
+    <h2>Пик/бан карт</h2>
+    <p><strong>{{ match.team1_id.name }}</strong> vs <strong>{{ match.team2_id.name }}</strong></p>
+    <p><strong>Шаг {{ next_step }} из 7</strong></p>
 
-<ol class="mb-3">
-  <li>Капитан <strong>{{ match.team1_id.name }}</strong> — бан</li>
-  <li>Капитан <strong>{{ match.team2_id.name }}</strong> — бан</li>
-  <li>Капитан <strong>{{ match.team1_id.name }}</strong> — пик</li>
-  <li>Капитан <strong>{{ match.team2_id.name }}</strong> — пик</li>
-  <li>Капитан <strong>{{ match.team1_id.name }}</strong> — бан</li>
-  <li>Капитан <strong>{{ match.team2_id.name }}</strong> — бан</li>
-  <li>Оставшаяся карта — <strong>decider</strong> (автоматически)</li>
-</ol>
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Доступные карты</h5>
+                </div>
+                <div class="card-body">
+                    {% if pool %}
+                        <ul class="list-group">
+                            {% for map_name in pool %}
+                                <li class="list-group-item">{{ map_name }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p>Все карты выбраны</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
 
-<h5>История</h5>
-<ul class="list-group mb-3">
-  {% for h in history %}
-    <li class="list-group-item">
-      Шаг {{ h.step }} — {{ h.action }} — <strong>{{ h.map_name }}</strong>
-      {% if h.team_id %}({{ h.team_id.name }}){% else %}(авто){% endif %}
-    </li>
-  {% else %}
-    <li class="list-group-item">Пока пусто</li>
-  {% endfor %}
-</ul>
-
-{% if complete %}
-  <div class="alert alert-success">
-    Пик/бан завершён. Порядок карт: <strong>{{ order_maps | join(', ') }}</strong>
-    <div class="mt-2">
-      <a class="btn btn-primary" href="{{ url_for('tournament_detail', tournament_id=match.tournament_id.id) }}">К турниру</a>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Порядок карт</h5>
+                </div>
+                <div class="card-body">
+                    {% if order_maps %}
+                        <ol>
+                            {% for map_name in order_maps %}
+                                <li>{{ map_name }}</li>
+                            {% endfor %}
+                        </ol>
+                    {% else %}
+                        <p>Карты еще не выбраны</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
     </div>
-  </div>
-{% else %}
-  <div class="alert alert-info">
-    Сейчас шаг <strong>{{ next_step }}</strong>
-    {% if step_action %}— действие: <strong>{{ step_action }}</strong>{% endif %}
-    {% if acting_team %}— ход капитана <strong>{{ acting_team.name }}</strong>{% endif %}
-  </div>
 
-  {% if can_act %}
-    <form method="POST" class="row g-2">
-      <div class="col-md-6">
-        <select class="form-select" name="map_name" required>
-          <option value="">Выберите карту</option>
-          {% for m in pool %}
-            <option value="{{ m }}">{{ m }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-md-3">
-        <button class="btn btn-primary w-100" type="submit">Подтвердить ход</button>
-      </div>
-    </form>
-  {% else %}
-    <p class="text-muted">Войдите капитаном нужной команды или дождитесь хода соперника.</p>
-  {% endif %}
-{% endif %}
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5>История ходов</h5>
+                </div>
+                <div class="card-body">
+                    {% if history %}
+                        <ul class="list-group">
+                            {% for h in history %}
+                                <li class="list-group-item">
+                                    <strong>Шаг {{ h.step }}:</strong>
+                                    {{ h.action }} - {{ h.map_name }}
+                                    {% if h.team_id %}
+                                        ({{ h.team_id.name }})
+                                    {% endif %}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p>История пуста</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if complete %}
+        <div class="alert alert-success mt-4">
+            <h4>Пик/бан завершен!</h4>
+            <p>Порядок карт: {{ order_maps|join(' → ') }}</p>
+            <a href="{{ url_for('tournament_detail', tournament_id=match.tournament_id.id) }}" class="btn btn-primary">Вернуться к турниру</a>
+        </div>
+    {% else %}
+        {% if can_act %}
+            <div class="alert alert-info mt-4">
+                <h5>Ваш ход!</h5>
+                <p>Действие: <strong>{{ step_action }}</strong></p>
+                <form method="POST">
+                    <div class="mb-3">
+                        <label class="form-label">Выберите карту</label>
+                        <select class="form-select" name="map_name" required>
+                            <option value="">Выберите карту...</option>
+                            {% for map_name in pool %}
+                                <option value="{{ map_name }}">{{ map_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Подтвердить ход</button>
+                </form>
+            </div>
+        {% else %}
+            <div class="alert alert-warning mt-4">
+                <h5>Ожидание хода соперника</h5>
+                <p>Сейчас ходит: <strong>{{ acting_team.name if acting_team else 'ожидание' }}</strong></p>
+            </div>
+        {% endif %}
+    {% endif %}
+
+    <a href="{{ url_for('tournament_detail', tournament_id=match.tournament_id.id) }}" class="btn btn-secondary mt-3">Назад к турниру</a>
+</div>
+
+<script>
+    // ===== АВТОМАТИЧЕСКОЕ ОБНОВЛЕНИЕ КАЖДЫЕ 10 СЕКУНД =====
+    const isComplete = {{ complete|tojson }};
+
+    // Если пик/бан не завершен - обновляем страницу каждые 10 секунд
+    if (!isComplete) {
+        setTimeout(function() {
+            location.reload();
+        }, 10000); // 10 секунд
+    }
+</script>
 {% endblock %}

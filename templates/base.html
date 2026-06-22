@@ -14,9 +14,7 @@
     <div class="d-flex gap-2">
       <a class="btn btn-outline-light btn-sm" href="/">Главная</a>
       {% if current_user.is_authenticated %}
-        {% if current_user.role_id.id == 1 %}
-          <a class="btn btn-outline-warning btn-sm" href="{{ url_for('admin_panel') }}">Админ</a>
-        {% endif %}
+        <!-- Кнопка Админ УДАЛЕНА - теперь всё в Кабинете -->
         <a class="btn btn-warning btn-sm" href="/dashboard">Кабинет</a>
         <a class="btn btn-danger btn-sm" href="/logout">Выход</a>
       {% else %}

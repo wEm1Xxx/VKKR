@@ -1,297 +1,641 @@
-{# Кабинет: разный контент для админа / капитана / игрока / зрителя #}
 {% extends "base.html" %}
 {% block title %}Личный кабинет{% endblock %}
-
 {% block content %}
-<h2>Личный кабинет</h2>
-<p><strong>Пользователь:</strong> {{ user.username }}</p>
-<p><strong>Роль:</strong> {{ user.role_id.name }}</p>
+<div class="container">
+    <h2 class="mb-4">Личный кабинет</h2>
+    <p>Добро пожаловать, {{ user.username }}!</p>
+    <p>Ваша роль: <strong>{{ user.role_id.name }}</strong></p>
 
-{% if user.role_id.id == 1 %}
-  <div class="card mb-3">
-    <div class="card-body">
-      <h5>Режим администратора</h5>
-      <p>Можете создавать турниры, запускать их после регистрации, завершать и подтверждать счёт.</p>
-      <p class="mb-0"><a class="btn btn-outline-primary btn-sm" href="{{ url_for('admin_panel') }}">Обзор: пользователи и турниры</a></p>
+    <!-- ============================================ -->
+    <!-- ===== АДМИНИСТРАТОР ===== -->
+    <!-- ============================================ -->
+    {% if user.role_id.id == 1 %}
 
-      <hr>
-      <h6>Создать турнир</h6>
-      <form method="POST" action="/create_tournament" class="row g-2">
-        <div class="col-md-3">
-          <input class="form-control" name="title" placeholder="Название турнира" required>
-        </div>
-        <div class="col-md-2">
-          <input class="form-control" name="game" placeholder="Игра (cs2 — пик/бан)" required>
-        </div>
-        <div class="col-md-2">
-          <select class="form-select" name="format">
-            <option value="single_elimination">single_elimination</option>
-            <option value="round_robin">round_robin</option>
-          </select>
-        </div>
-        <div class="col-md-2">
-          <input class="form-control" type="number" name="max_teams" min="2" placeholder="Макс. команд" required>
-        </div>
-        <div class="col-md-2">
-          <input class="form-control" type="datetime-local" name="start_date" required>
-        </div>
-        <div class="col-md-1">
-          <button class="btn btn-primary w-100" type="submit">Создать</button>
-        </div>
-      </form>
-    </div>
-  </div>
+    <!-- Вкладки админа -->
+    <ul class="nav nav-tabs mb-4">
+        <li class="nav-item">
+            <a class="nav-link active" data-bs-toggle="tab" href="#results">Результаты ({{ unconfirmed|length }})</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#appeals">Апелляции ({{ appeals|length }})</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#tournaments">Турниры</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#users">Пользователи</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#create">Создать турнир</a>
+        </li>
+    </ul>
 
-  <div class="card mb-3">
-    <div class="card-body">
-      <h6>Запустить турнир</h6>
-      <p class="small text-muted mb-2">Статус registration, минимум 2 команды. Генерируется сетка матчей.</p>
-      <form method="POST" action="/admin/tournament/start" class="row g-2">
-        <div class="col-md-10">
-          <select class="form-select" name="tournament_id" required>
-            <option value="">Выберите турнир (registration)</option>
-            {% for t in tournaments %}
-              {% if t.status == 'registration' %}
-                <option value="{{ t.id }}">#{{ t.id }} | {{ t.title }} | {{ t.format }}</option>
-              {% endif %}
-            {% endfor %}
-          </select>
-        </div>
-        <div class="col-md-2">
-          <button class="btn btn-success w-100" type="submit">Запустить</button>
-        </div>
-      </form>
-    </div>
-  </div>
+    <div class="tab-content">
 
-  <div class="card mb-3">
-    <div class="card-body">
-      <h6>Завершить турнир</h6>
-      <form method="POST" action="/finish_tournament" class="row g-2">
-        <div class="col-md-10">
-          <select class="form-select" name="tournament_id" required>
-            <option value="">Выберите турнир</option>
-            {% for t in tournaments %}
-              <option value="{{ t.id }}">#{{ t.id }} | {{ t.title }} | {{ t.status }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="col-md-2">
-          <button class="btn btn-warning w-100" type="submit">Завершить</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="card-body">
-      <h6>Подтвердить счёт матча</h6>
-      <p class="small text-muted mb-2">
-        Здесь только матчи, по которым капитан уже отправил результат (в т.ч. CS2 — серия по картам).
-      </p>
-      <form method="POST" action="/confirm_match_result" class="row g-2">
-        <div class="col-md-10">
-          <select class="form-select" name="match_id" required {% if not unconfirmed %}disabled{% endif %}>
-            <option value="">{% if unconfirmed %}Выберите матч{% else %}Нет матчей для подтверждения{% endif %}</option>
-            {% for r in unconfirmed %}
-              <option value="{{ r.match_id.id }}">
-                Матч #{{ r.match_id.id }} |
-                турнир #{{ r.match_id.tournament_id.id }} |
-                {{ r.match_id.team1_id.name if r.match_id.team1_id else '?' }}
-                vs
-                {{ r.match_id.team2_id.name if r.match_id.team2_id else '?' }}
-                — счёт {{ r.score_team1 }}:{{ r.score_team2 }}
-                (от {{ r.reported_by.username }})
-              </option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="col-md-2">
-          <button class="btn btn-success w-100" type="submit" {% if not unconfirmed %}disabled{% endif %}>Подтвердить</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-{% elif user.role_id.id == 2 %}
-  <div class="card mb-3">
-    <div class="card-body">
-      <h5>Режим капитана</h5>
-      <p>Одна команда на аккаунт: создание, состав, заявки игроков, регистрация на турнир.</p>
-
-      {% if not my_team %}
-        <hr>
-        <h6>Создать команду</h6>
-        <form method="POST" action="/captain/team/create" class="row g-2">
-          <div class="col-md-10">
-            <input class="form-control" name="name" placeholder="Название команды" required>
-          </div>
-          <div class="col-md-2">
-            <button class="btn btn-primary w-100" type="submit">Создать</button>
-          </div>
-        </form>
-      {% else %}
-        <hr>
-        <h6>Моя команда</h6>
-        <p class="mb-1"><strong>#{{ my_team.id }} — {{ my_team.name }}</strong></p>
-
-        <h6 class="mt-3">Состав</h6>
-        <ul class="list-group mb-3">
-          {% for m in my_members %}
-            <li class="list-group-item d-flex justify-content-between align-items-center">
-              <span>#{{ m.user_id.id }} | {{ m.user_id.username }}</span>
-              {% if m.user_id.id != user.id %}
-                <form method="POST" action="/captain/team/remove_player" class="m-0">
-                  <input type="hidden" name="user_id" value="{{ m.user_id.id }}">
-                  <button type="submit" class="btn btn-outline-danger btn-sm">Исключить</button>
-                </form>
-              {% else %}
-                <span class="badge bg-secondary">капитан</span>
-              {% endif %}
-            </li>
-          {% else %}
-            <li class="list-group-item">В команде только капитан</li>
-          {% endfor %}
-        </ul>
-
-        {% if veto_matches %}
-          <h6 class="mt-3">Пик/бан CS2</h6>
-          <ul class="list-group mb-3">
-            {% for vm in veto_matches %}
-              <li class="list-group-item d-flex justify-content-between align-items-center">
-                <span>Матч #{{ vm.id }} — {{ vm.team1_id.name }} vs {{ vm.team2_id.name }}</span>
-                <a class="btn btn-sm btn-primary" href="{{ url_for('match_pickban', match_id=vm.id) }}">Открыть</a>
-              </li>
-            {% endfor %}
-          </ul>
-        {% endif %}
-
-        {% if captain_matches %}
-          <h6>Мои матчи</h6>
-          {% for cm in captain_matches %}
-            <div class="border rounded p-2 mb-2">
-              <div class="mb-2">
-                <strong>Раунд {{ cm.round }}</strong> —
-                {{ cm.team1_id.name if cm.team1_id else '?' }} vs {{ cm.team2_id.name if cm.team2_id else '?' }}
-                <span class="text-muted small">(матч #{{ cm.id }})</span>
-              </div>
-              {% set g = (cm.tournament_id.game or '')|lower|trim %}
-              {% if g == 'cs2' or g == 'cs 2' %}
-                <a class="btn btn-primary btn-sm" href="{{ url_for('match_report_cs2', match_id=cm.id) }}">Отчёт по картам (CS2)</a>
-              {% else %}
-                <form method="POST" action="/captain/match/report" class="row g-2 align-items-end">
-                  <input type="hidden" name="match_id" value="{{ cm.id }}">
-                  <div class="col-md-2">
-                    <label class="form-label small mb-0">Счёт 1</label>
-                    <input class="form-control" type="number" name="score1" min="0" required>
-                  </div>
-                  <div class="col-md-2">
-                    <label class="form-label small mb-0">Счёт 2</label>
-                    <input class="form-control" type="number" name="score2" min="0" required>
-                  </div>
-                  <div class="col-md-3">
-                    <button class="btn btn-primary w-100" type="submit">Отправить счёт</button>
-                  </div>
-                </form>
-              {% endif %}
-            </div>
-          {% endfor %}
-        {% endif %}
-
-        {% if pending_join_requests %}
-          <h6 class="mt-3">Заявки от игроков</h6>
-          <ul class="list-group mb-3">
-            {% for jr in pending_join_requests %}
-              <li class="list-group-item d-flex justify-content-between align-items-center">
-                <span>#{{ jr.player_id.id }} | {{ jr.player_id.username }}</span>
-                <div class="d-flex gap-2">
-                  <form method="POST" action="/captain/join_request/approve" class="m-0">
-                    <input type="hidden" name="request_id" value="{{ jr.id }}">
-                    <button type="submit" class="btn btn-success btn-sm">Принять</button>
-                  </form>
-                  <form method="POST" action="/captain/join_request/reject" class="m-0">
-                    <input type="hidden" name="request_id" value="{{ jr.id }}">
-                    <button type="submit" class="btn btn-outline-secondary btn-sm">Отклонить</button>
-                  </form>
+        <!-- ВКЛАДКА 1: РЕЗУЛЬТАТЫ -->
+        <div class="tab-pane fade show active" id="results">
+            <div class="card">
+                <div class="card-header">
+                    <strong>Неподтвержденные результаты</strong>
                 </div>
-              </li>
-            {% endfor %}
-          </ul>
-        {% endif %}
+                <div class="card-body">
+                    {% if unconfirmed %}
+                        {% for result in unconfirmed %}
+                            <div class="border-bottom pb-3 mb-3">
+                                <p class="mb-1">
+                                    <strong>{{ result.match_id.team1_id.name }}</strong>
+                                    vs
+                                    <strong>{{ result.match_id.team2_id.name }}</strong>
+                                </p>
+                                <p class="mb-1">
+                                    Счет серии: {{ result.score_team1 }} : {{ result.score_team2 }}
+                                    <span class="text-muted">(отправил: {{ result.reported_by.username }})</span>
+                                </p>
 
-        <h6>Регистрация на турнир</h6>
-        <form method="POST" action="/captain/tournament/register" class="row g-2 mb-3">
-          <div class="col-md-10">
-            <select class="form-select" name="tournament_id" required>
-              <option value="">Выберите турнир (статус: registration)</option>
-              {% for t in tournaments %}
-                {% if t.status == 'registration' %}
-                  <option value="{{ t.id }}">#{{ t.id }} | {{ t.title }} | {{ t.game }}</option>
-                {% endif %}
-              {% endfor %}
-            </select>
-          </div>
-          <div class="col-md-2">
-            <button class="btn btn-primary w-100" type="submit">Зарегистрировать</button>
-          </div>
-        </form>
+                                <!-- Счет по картам (для CS2) -->
+                                {% set map_scores = map_scores_by_match.get(result.match_id.id) %}
+                                {% if map_scores %}
+                                    <div class="ms-3 mb-2">
+                                        <small class="text-muted">Счет по картам:</small>
+                                        {% for map_score in map_scores %}
+                                            <div class="ms-3">
+                                                <small>
+                                                    {{ map_score.map_name }}:
+                                                    {{ map_score.team1_rounds }} : {{ map_score.team2_rounds }}
+                                                </small>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
 
-        <h6 class="mt-2">Турниры, на которые заявлена команда</h6>
-        <ul class="list-group">
-          {% for t in registered_tournaments %}
-            <li class="list-group-item d-flex justify-content-between align-items-center">
-              <span>
-                <strong>{{ t.title }}</strong>
-                <span class="text-muted ms-2">{{ t.game }}</span>
-              </span>
-              <span class="badge bg-secondary">{{ t.status }}</span>
-            </li>
-          {% else %}
-            <li class="list-group-item">Пока нет регистраций на турниры</li>
-          {% endfor %}
-        </ul>
-      {% endif %}
-    </div>
-  </div>
-
-{% elif user.role_id.id == 3 %}
-  <div class="card">
-    <div class="card-body">
-      <h5>Режим игрока</h5>
-      <p>Можете просматривать команды и турниры.</p>
-
-      {% if player_team %}
-        <div class="alert alert-light border mb-3">
-          <p class="mb-1"><strong>Ваша команда:</strong> #{{ player_team.id }} — {{ player_team.name }}</p>
-          <p class="mb-0 text-muted small">Капитан: #{{ player_team.captain_id.id }} — {{ player_team.captain_id.username }}</p>
+                                <form method="POST" action="/confirm_match_result" style="display:inline;">
+                                    <input type="hidden" name="match_id" value="{{ result.match_id.id }}">
+                                    <button type="submit" class="btn btn-success btn-sm">Подтвердить</button>
+                                </form>
+                                <form method="POST" action="/admin/reject_match_result" style="display:inline;">
+                                    <input type="hidden" name="match_id" value="{{ result.match_id.id }}">
+                                    <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Удалить результат?')">Удалить</button>
+                                </form>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted mb-0">Нет результатов на проверку</p>
+                    {% endif %}
+                </div>
+            </div>
         </div>
 
-        <h6>Состав команды</h6>
-        <ul class="list-group mb-3">
-          {% for m in player_team_members %}
-            <li class="list-group-item">
-              #{{ m.user_id.id }} | {{ m.user_id.username }}
-              {% if m.user_id.id == user.id %}<span class="badge bg-primary ms-2">вы</span>{% endif %}
-            </li>
-          {% endfor %}
-        </ul>
-      {% else %}
-        <div class="alert alert-warning mb-3">
-          Вы пока не состоите ни в одной команде. Отправьте заявку капитану через список команд.
+        <!-- ВКЛАДКА 2: АПЕЛЛЯЦИИ -->
+        <div class="tab-pane fade" id="appeals">
+            <div class="card">
+                <div class="card-header">
+                    <strong>Апелляции</strong>
+                    <small class="text-muted ms-2">- Подтвердить = апелляция верная, дисквалификация. Отклонить = апелляция ложная, результат подтверждается.</small>
+                </div>
+                <div class="card-body">
+                    {% if appeals %}
+                        {% for result in appeals %}
+                            <div class="border-bottom pb-3 mb-3">
+                                <p class="mb-1">
+                                    <strong>{{ result.match_id.team1_id.name }}</strong>
+                                    vs
+                                    <strong>{{ result.match_id.team2_id.name }}</strong>
+                                </p>
+                                <p class="mb-1">
+                                    Текущий счет серии: {{ result.score_team1 }} : {{ result.score_team2 }}
+                                    <span class="text-muted">(отправил: {{ result.reported_by.username }})</span>
+                                </p>
+
+                                <!-- Счет по картам (для CS2) -->
+                                {% set map_scores = map_scores_by_match.get(result.match_id.id) %}
+                                {% if map_scores %}
+                                    <div class="ms-3 mb-2">
+                                        <small class="text-muted">Счет по картам:</small>
+                                        {% for map_score in map_scores %}
+                                            <div class="ms-3">
+                                                <small>
+                                                    {{ map_score.map_name }}:
+                                                    {{ map_score.team1_rounds }} : {{ map_score.team2_rounds }}
+                                                </small>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+
+                                <div class="alert alert-warning py-2 mb-2">
+                                    <strong>Апелляция от {{ result.appealed_by.username }}</strong>
+                                    {% if result.appeal_reason %}
+                                        <br><em>"{{ result.appeal_reason }}"</em>
+                                    {% endif %}
+                                    <br><small class="text-muted">Статус: ожидает рассмотрения</small>
+                                </div>
+
+                                <div class="btn-group">
+                                    <form method="POST" action="/admin/appeal_resolve" style="display:inline;">
+                                        <input type="hidden" name="match_id" value="{{ result.match_id.id }}">
+                                        <input type="hidden" name="action" value="reject">
+                                        <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('Отклонить апелляцию? Результат будет подтвержден.')">
+                                            Отклонить апелляцию
+                                        </button>
+                                    </form>
+                                    <form method="POST" action="/admin/appeal_resolve" style="display:inline;">
+                                        <input type="hidden" name="match_id" value="{{ result.match_id.id }}">
+                                        <input type="hidden" name="action" value="confirm">
+                                        <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Подтвердить апелляцию? Команда будет дисквалифицирована за ложный результат.')">
+                                            Подтвердить апелляцию
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted mb-0">Нет активных апелляций</p>
+                    {% endif %}
+                </div>
+            </div>
         </div>
-      {% endif %}
 
-      <a class="btn btn-primary" href="/player/teams">Список команд</a>
-    </div>
-  </div>
+        <!-- ВКЛАДКА 3: ТУРНИРЫ -->
+        <div class="tab-pane fade" id="tournaments">
+            <div class="row">
+                <!-- Регистрация -->
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">Регистрация</div>
+                        <div class="card-body">
+                            {% set reg = tournaments|selectattr('status', 'equalto', 'registration')|list %}
+                            {% if reg %}
+                                {% for t in reg %}
+                                    <div class="border-bottom py-2">
+                                        {{ t.title }}
+                                        <span class="badge bg-secondary float-end">{{ t.registrations.count() }}/{{ t.max_teams }}</span>
+                                        <form method="POST" action="/admin/tournament/start" style="display:inline;">
+                                            <input type="hidden" name="tournament_id" value="{{ t.id }}">
+                                            <button type="submit" class="btn btn-sm btn-success float-end me-1">Запустить</button>
+                                        </form>
+                                    </div>
+                                {% endfor %}
+                            {% else %}
+                                <p class="text-muted">Нет турниров</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
 
-{% else %}
-  <div class="card">
-    <div class="card-body">
-      <h5>Режим зрителя</h5>
-      <p>Можно только просматривать турниры.</p>
-      <a class="btn btn-outline-primary btn-sm" href="/">Открыть турниры</a>
+                <!-- В процессе -->
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">В процессе</div>
+                        <div class="card-body">
+                            {% set prog = tournaments|selectattr('status', 'equalto', 'in_progress')|list %}
+                            {% if prog %}
+                                {% for t in prog %}
+                                    <div class="border-bottom py-2">
+                                        {{ t.title }}
+                                        <a href="/tournament/{{ t.id }}" class="btn btn-sm btn-primary float-end">Смотреть</a>
+                                        <form method="POST" action="/finish_tournament" style="display:inline;">
+                                            <input type="hidden" name="tournament_id" value="{{ t.id }}">
+                                            <button type="submit" class="btn btn-sm btn-warning float-end me-1">Завершить</button>
+                                        </form>
+                                    </div>
+                                {% endfor %}
+                            {% else %}
+                                <p class="text-muted">Нет турниров</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Завершены -->
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">Завершены</div>
+                        <div class="card-body">
+                            {% set fin = tournaments|selectattr('status', 'equalto', 'finished')|list %}
+                            {% if fin %}
+                                {% for t in fin %}
+                                    <div class="border-bottom py-2">
+                                        {{ t.title }}
+                                        <a href="/tournament/{{ t.id }}" class="btn btn-sm btn-secondary float-end">Смотреть</a>
+                                    </div>
+                                {% endfor %}
+                            {% else %}
+                                <p class="text-muted">Нет турниров</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ВКЛАДКА 4: ПОЛЬЗОВАТЕЛИ -->
+        <div class="tab-pane fade" id="users">
+            <div class="card">
+                <div class="card-header">
+                    <strong>Список пользователей</strong>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-bordered mb-0">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Имя</th>
+                                <th>Email</th>
+                                <th>Роль</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in users %}
+                                <tr>
+                                    <td>{{ user.id }}</td>
+                                    <td>{{ user.username }}</td>
+                                    <td>{{ user.email }}</td>
+                                    <td>{{ user.role_id.name }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ВКЛАДКА 5: СОЗДАТЬ ТУРНИР -->
+        <div class="tab-pane fade" id="create">
+            <div class="card">
+                <div class="card-header">
+                    <strong>Создать турнир</strong>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="/create_tournament">
+                        <div class="row">
+                            <div class="col-md-6 mb-2">
+                                <label>Название турнира</label>
+                                <input class="form-control" type="text" name="title" required>
+                            </div>
+                            <div class="col-md-6 mb-2">
+                                <label>Игра</label>
+                                <select class="form-select" name="game" required>
+                                    <option value="">Выберите игру...</option>
+                                    <option value="CS2">CS2</option>
+                                    <option value="Dota 2">Dota 2</option>
+                                    <option value="Valorant">Valorant</option>
+                                    <option value="League of Legends">League of Legends</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4 mb-2">
+                                <label>Формат</label>
+                                <select class="form-select" name="format" required>
+                                    <option value="single_elimination">На вылет</option>
+                                    <option value="round_robin">Круговая</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4 mb-2">
+                                <label>Максимум команд</label>
+                                <input class="form-control" type="number" name="max_teams" required>
+                            </div>
+                            <div class="col-md-4 mb-2">
+                                <label>Дата и время</label>
+                                <input class="form-control" type="datetime-local" name="start_date" required>
+                            </div>
+                        </div>
+                        <button class="btn btn-success" type="submit">Создать</button>
+                    </form>
+                </div>
+            </div>
+        </div>
     </div>
-  </div>
-{% endif %}
+
+
+    <!-- ============================================ -->
+    <!-- ===== КАПИТАН ===== -->
+    <!-- ============================================ -->
+    {% elif user.role_id.id == 2 %}
+
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <!-- Команда -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5>Моя команда</h5>
+                </div>
+                <div class="card-body">
+                    {% if my_team %}
+                        <h6>{{ my_team.name }}</h6>
+                        <p><strong>Капитан:</strong> {{ user.username }}</p>
+                        <h6>Состав:</h6>
+                        <ul class="list-group">
+                            {% for member in my_members %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    {{ member.user_id.username }}
+                                    {% if member.user_id.id != user.id %}
+                                        <form method="POST" action="/captain/team/remove_player" style="display:inline;">
+                                            <input type="hidden" name="user_id" value="{{ member.user_id.id }}">
+                                            <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Вы уверены?')">Исключить</button>
+                                        </form>
+                                    {% endif %}
+                                </li>
+                            {% endfor %}
+                        </ul>
+
+                        <!-- Заявки на вступление -->
+                        {% if pending_join_requests %}
+                            <h6 class="mt-3">Заявки на вступление:</h6>
+                            {% for request in pending_join_requests %}
+                                <div class="card mb-2">
+                                    <div class="card-body">
+                                        <p>{{ request.player_id.username }} хочет вступить в команду</p>
+                                        <form method="POST" action="/captain/join_request/approve" style="display:inline;">
+                                            <input type="hidden" name="request_id" value="{{ request.id }}">
+                                            <button type="submit" class="btn btn-success btn-sm">Принять</button>
+                                        </form>
+                                        <form method="POST" action="/captain/join_request/reject" style="display:inline;">
+                                            <input type="hidden" name="request_id" value="{{ request.id }}">
+                                            <button type="submit" class="btn btn-danger btn-sm">Отклонить</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+
+                        <!-- Зарегистрированные турниры -->
+                        {% if registered_tournaments %}
+                            <h6 class="mt-3">Зарегистрированы на турниры:</h6>
+                            {% for tournament in registered_tournaments %}
+                                <span class="badge bg-info">{{ tournament.title }}</span>
+                            {% endfor %}
+                        {% endif %}
+                    {% else %}
+                        <p>У вас нет команды</p>
+                        <form method="POST" action="/captain/team/create">
+                            <div class="mb-2">
+                                <input class="form-control" type="text" name="name" placeholder="Название команды" required>
+                            </div>
+                            <button class="btn btn-success w-100" type="submit">Создать команду</button>
+                        </form>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Регистрация на турнир -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5>Регистрация на турнир</h5>
+                </div>
+                <div class="card-body">
+                    {% if my_team %}
+                        <form method="POST" action="/captain/tournament/register">
+                            <div class="mb-2">
+                                <select class="form-select" name="tournament_id" required>
+                                    <option value="">Выберите турнир</option>
+                                    {% for tournament in tournaments %}
+                                        {% if tournament.status == 'registration' %}
+                                            <option value="{{ tournament.id }}">{{ tournament.title }}</option>
+                                        {% endif %}
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <button class="btn btn-primary w-100" type="submit">Зарегистрировать команду</button>
+                        </form>
+                    {% else %}
+                        <p>Сначала создайте команду</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <!-- Матчи для отчета -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5>Матчи для отчета</h5>
+                </div>
+                <div class="card-body">
+                    {% if captain_matches %}
+                        {% for match in captain_matches %}
+                            <div class="card mb-2">
+                                <div class="card-body">
+                                    <p><strong>{{ match.team1_id.name }}</strong> vs <strong>{{ match.team2_id.name }}</strong></p>
+                                    <p>Раунд: {{ match.round }}</p>
+                                    <form method="POST" action="/captain/match/report">
+                                        <input type="hidden" name="match_id" value="{{ match.id }}">
+                                        <div class="row">
+                                            <div class="col-4">
+                                                <input class="form-control" type="number" name="score1" placeholder="Счет 1" required>
+                                            </div>
+                                            <div class="col-4">
+                                                <input class="form-control" type="number" name="score2" placeholder="Счет 2" required>
+                                            </div>
+                                            <div class="col-4">
+                                                <button class="btn btn-primary w-100" type="submit">Отправить</button>
+                                            </div>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <p>Нет матчей для отчета</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Veto матчи -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5>Пик/бан CS2</h5>
+                </div>
+                <div class="card-body">
+                    {% if veto_matches %}
+                        {% for match in veto_matches %}
+                            <div class="card mb-2">
+                                <div class="card-body">
+                                    <p><strong>{{ match.team1_id.name }}</strong> vs <strong>{{ match.team2_id.name }}</strong></p>
+                                    <a href="/match/{{ match.id }}/pickban" class="btn btn-warning btn-sm">Перейти к пик/бану</a>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <p>Нет матчей в фазе пик/бана</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Завершенные матчи (для апелляции и согласия) -->
+            {% if confirmed_matches %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5>Завершенные матчи</h5>
+                    <small class="text-muted">Подтвердите результат или подайте апелляцию</small>
+                </div>
+                <div class="card-body">
+                    {% for match in confirmed_matches %}
+                        <div class="card mb-2">
+                            <div class="card-body">
+                                <p><strong>{{ match.team1_id.name }}</strong> vs <strong>{{ match.team2_id.name }}</strong></p>
+                                {% set result = match.results.first() %}
+                                {% if result %}
+                                    <p>Результат: {{ result.score_team1 }} : {{ result.score_team2 }}</p>
+                                    <p>Статус:
+                                        {% if result.appealed_by_id %}
+                                            <span class="badge bg-warning">Апелляция подана</span>
+                                        {% elif result.confirmed_by_id %}
+                                            <span class="badge bg-success">Подтвержден</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Ожидает подтверждения</span>
+                                        {% endif %}
+                                    </p>
+
+                                    <!-- Отображение статуса согласия -->
+                                    {% set user_team = my_team %}
+                                    {% if user_team %}
+                                        {% if match.team1_id.id == user_team.id %}
+                                            {% if result.agreed_by_team1 %}
+                                                <p class="text-success mt-1"><small> Ваша команда уже согласна с результатом</small></p>
+                                            {% endif %}
+                                        {% elif match.team2_id.id == user_team.id %}
+                                            {% if result.agreed_by_team2 %}
+                                                <p class="text-success mt-1"><small> Ваша команда уже согласна с результатом</small></p>
+                                            {% endif %}
+                                        {% endif %}
+
+                                        <!-- Показываем статус согласия второй команды -->
+                                        {% if match.team1_id.id == user_team.id and result.agreed_by_team2 %}
+                                            <p class="text-success mt-1"><small> Команда {{ match.team2_id.name }} согласна с результатом</small></p>
+                                        {% elif match.team2_id.id == user_team.id and result.agreed_by_team1 %}
+                                            <p class="text-success mt-1"><small> Команда {{ match.team1_id.name }} согласна с результатом</small></p>
+                                        {% endif %}
+
+                                        <!-- Если обе команды согласны -->
+                                        {% if result.agreed_by_team1 and result.agreed_by_team2 %}
+                                            <div class="alert alert-success mt-2 py-1">
+                                                <strong> Обе команды согласны! Матч завершен.</strong>
+                                            </div>
+                                        {% endif %}
+                                    {% endif %}
+
+                                    <!-- ===== КНОПКА СОГЛАСИЯ ===== -->
+                                    {% if result.confirmed_by_id and not result.appealed_by_id %}
+                                        {% set user_team = my_team %}
+                                        {% if user_team %}
+                                            {% set already_agreed = false %}
+                                            {% if match.team1_id.id == user_team.id and result.agreed_by_team1 %}
+                                                {% set already_agreed = true %}
+                                            {% elif match.team2_id.id == user_team.id and result.agreed_by_team2 %}
+                                                {% set already_agreed = true %}
+                                            {% endif %}
+
+                                            {% if not already_agreed and not (result.agreed_by_team1 and result.agreed_by_team2) %}
+                                                <form method="POST" action="/captain/confirm_match" class="mt-2" style="display:inline;">
+                                                    <input type="hidden" name="match_id" value="{{ match.id }}">
+                                                    <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('Вы согласны с результатом матча?')">
+                                                         Согласен с результатом
+                                                    </button>
+                                                </form>
+                                            {% endif %}
+                                        {% endif %}
+                                    {% endif %}
+
+                                    <!-- ===== КНОПКА АПЕЛЛЯЦИИ ===== -->
+                                    {% if not result.appealed_by_id and result.confirmed_by_id and not (result.agreed_by_team1 and result.agreed_by_team2) %}
+                                        <form method="POST" action="/captain/appeal_match" class="mt-2" style="display:inline;">
+                                            <input type="hidden" name="match_id" value="{{ match.id }}">
+                                            <div class="mb-2">
+                                                <textarea class="form-control" name="appeal_reason" placeholder="Причина апелляции (обязательно)" rows="2" required></textarea>
+                                            </div>
+                                            <button type="submit" class="btn btn-warning btn-sm" onclick="return confirm('Вы уверены? Апелляция будет отправлена администратору.')">
+                                                 Подать апелляцию
+                                            </button>
+                                        </form>
+                                    {% endif %}
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+
+    <!-- ============================================ -->
+    <!-- ===== ИГРОК ===== -->
+    <!-- ============================================ -->
+    {% elif user.role_id.id == 3 %}
+
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5>Моя команда</h5>
+                </div>
+                <div class="card-body">
+                    {% if player_team %}
+                        <h6>{{ player_team.name }}</h6>
+                        <p><strong>Капитан:</strong> {{ player_team.captain_id.username }}</p>
+                        <h6>Состав:</h6>
+                        <ul class="list-group">
+                            {% for member in player_team_members %}
+                                <li class="list-group-item">{{ member.user_id.username }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p>Вы не состоите в команде</p>
+                        <a href="/player/teams" class="btn btn-primary">Найти команду</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5>Турниры</h5>
+                </div>
+                <div class="card-body">
+                    {% for tournament in tournaments %}
+                        <div class="card mb-2">
+                            <div class="card-body">
+                                <h6>{{ tournament.title }}</h6>
+                                <p>Статус: {{ tournament.status }}</p>
+                                <a href="/tournament/{{ tournament.id }}" class="btn btn-primary btn-sm">Перейти</a>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ============================================ -->
+    <!-- ===== ЗРИТЕЛЬ ===== -->
+    <!-- ============================================ -->
+    {% else %}
+
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5>Турниры</h5>
+                </div>
+                <div class="card-body">
+                    {% for tournament in tournaments %}
+                        <div class="card mb-2">
+                            <div class="card-body">
+                                <h6>{{ tournament.title }}</h6>
+                                <p>Статус: {{ tournament.status }}</p>
+                                <a href="/tournament/{{ tournament.id }}" class="btn btn-primary btn-sm">Перейти</a>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% endif %}
+</div>
 {% endblock %}

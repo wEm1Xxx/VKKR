@@ -1,0 +1,101 @@
+{# Страница турнира: команды, матчи, CS2 пик/бан и отчёт, счёт серии #}
+{% extends "base.html" %}
+{% block title %}{{ tournament.title }}{% endblock %}
+
+{% block content %}
+<h2>{{ tournament.title }}</h2>
+<p class="mb-1"><strong>Игра:</strong> {{ tournament.game }}</p>
+<p class="mb-1"><strong>Формат:</strong> {{ tournament.format }}</p>
+<p class="mb-3"><strong>Статус:</strong> {{ tournament.status }}</p>
+
+{% if champion %}
+  <div class="alert alert-success border-success">
+    <h4 class="alert-heading mb-1">Чемпион турнира</h4>
+    <p class="mb-0 fs-5"><strong>{{ champion.name }}</strong> <span class="text-muted">(#{{ champion.id }})</span></p>
+  </div>
+{% endif %}
+
+<h4 class="mt-4">Участвующие команды</h4>
+<ul class="list-group mb-4">
+  {% for team in participating %}
+    <li class="list-group-item d-flex justify-content-between align-items-center">
+      <span><strong>#{{ team.id }}</strong> — {{ team.name }}</span>
+      <span class="text-muted small">Капитан: {{ team.captain_id.username }}</span>
+    </li>
+  {% else %}
+    <li class="list-group-item">Пока нет зарегистрированных команд</li>
+  {% endfor %}
+</ul>
+
+<h4>Матчи</h4>
+{% if matches|length %}
+  <ul class="list-group">
+    {% for m in matches %}
+      {% set sc = scores.get(m.id) %}
+      {% set pb = pickban_by_match.get(m.id) %}
+      {% set ms = map_scores_by_match.get(m.id, []) %}
+      <li class="list-group-item">
+        <div><strong>Раунд {{ m.round }}</strong> — матч #{{ m.id }}</div>
+        <div class="mt-1">
+          {% if m.team1_id %}{{ m.team1_id.name }}{% else %}TBD{% endif %}
+          <span class="text-muted">vs</span>
+          {% if m.team2_id %}{{ m.team2_id.name }}{% else %}TBD{% endif %}
+        </div>
+
+        {% if is_cs2_tournament and m.team1_id and m.team2_id %}
+          <div class="mt-2">
+            {% if m.status == 'veto' %}
+              <a class="btn btn-sm btn-outline-primary" href="{{ url_for('match_pickban', match_id=m.id) }}">Пик/бан карт</a>
+            {% elif pb and pb.done %}
+              <div class="small"><strong>Порядок карт:</strong> {{ pb.order | join(' → ') }}</div>
+              {% if m.status == 'pending' and not sc %}
+                <a class="btn btn-sm btn-primary mt-1" href="{{ url_for('match_report_cs2', match_id=m.id) }}">Отчёт по картам (капитан)</a>
+              {% endif %}
+            {% endif %}
+          </div>
+        {% endif %}
+
+        {% if sc %}
+          <div class="mt-2">
+            <strong>Серия (карты):</strong> {{ sc.s1 }} : {{ sc.s2 }}
+            {% if sc.confirmed %}
+              <span class="badge bg-success ms-2">подтверждено админом</span>
+            {% else %}
+              <span class="badge bg-warning text-dark ms-2">ожидает подтверждения</span>
+            {% endif %}
+          </div>
+        {% endif %}
+
+        {% if ms|length %}
+          <div class="mt-2">
+            <strong>Детали по картам:</strong>
+            <ul class="mb-0">
+              {% for row in ms %}
+                <li>
+                  {{ row.map_name }}:
+                  {{ row.team1_rounds }} — {{ row.team2_rounds }}
+                </li>
+              {% endfor %}
+            </ul>
+          </div>
+        {% endif %}
+
+        {% if m.winner_id %}
+          <div class="mt-2 text-success">
+            <strong>Победитель серии:</strong> {{ m.winner_id.name }}
+          </div>
+        {% elif m.status == 'pending' %}
+          <div class="mt-2 text-muted small">Серия не завершена</div>
+        {% endif %}
+
+        <div class="mt-1 small text-muted">Статус матча: {{ m.status }}</div>
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p class="text-muted">Матчи ещё не сгенерированы.</p>
+{% endif %}
+
+<p class="mt-3"><a href="/">← К списку турниров</a></p>
+{% endblock %}
+#

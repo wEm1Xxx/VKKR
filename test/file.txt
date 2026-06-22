@@ -1,0 +1,8 @@
+(login/password)
+ admin - admin1/admin1
+ capitans:
+ 1)cap1/cap1
+ 2)cap2/cap2
+ players:
+ 1)player/player
+ 2)wEm1Xxx/GeVkAn07
